@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The Hollow Maze</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Start Menu -->
+    <div id="start-menu" class="overlay">
+      <div class="menu-content">
+        <h1 class="title">THE HOLLOW MAZE</h1>
+        <p class="subtitle">You wake in the dark. Something is in here with you.</p>
+        <button id="start-button" class="menu-button">ENTER THE MAZE</button>
+        <div class="controls-info">
+          <h3>CONTROLS</h3>
+          <ul>
+            <li><span>WASD</span> Move</li>
+            <li><span>MOUSE</span> Look</li>
+            <li><span>SHIFT</span> Sprint</li>
+            <li><span>F</span> Toggle Flashlight</li>
+            <li><span>E</span> Interact / Pick Up</li>
+            <li><span>ESC</span> Pause</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="crosshair">+</div>
+
+      <div id="battery-container">
+        <div class="battery-label">FLASHLIGHT</div>
+        <div class="battery-bar">
+          <div id="battery-fill"></div>
+        </div>
+        <div id="battery-percent">100%</div>
+      </div>
+
+      <div id="objective">
+        <div class="objective-label">OBJECTIVE</div>
+        <div id="objective-text">Find the keys. Escape the maze.</div>
+        <div id="keys-counter">KEYS: 0 / 3</div>
+      </div>
+
+      <div id="interact-prompt" class="hidden">[E] Pick Up</div>
+      <div id="warning-text" class="hidden"></div>
+    </div>
+
+    <!-- Pause Menu -->
+    <div id="pause-menu" class="overlay hidden">
+      <div class="menu-content">
+        <h2>PAUSED</h2>
+        <button id="resume-button" class="menu-button">RESUME</button>
+        <button id="restart-button" class="menu-button">RESTART</button>
+      </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="death-screen" class="overlay hidden">
+      <div class="menu-content">
+        <h1 class="death-title">YOU DIED</h1>
+        <p class="death-subtitle">It found you.</p>
+        <button id="retry-button" class="menu-button">TRY AGAIN</button>
+      </div>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="win-screen" class="overlay hidden">
+      <div class="menu-content">
+        <h1 class="win-title">YOU ESCAPED</h1>
+        <p class="win-subtitle">But it's still out there...</p>
+        <button id="play-again-button" class="menu-button">PLAY AGAIN</button>
+      </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="overlay hidden">
+      <div class="menu-content">
+        <h2>GENERATING MAZE...</h2>
+        <div class="loader"></div>
+      </div>
+    </div>
+
+    <!-- Vignette overlay for damage / horror -->
+    <div id="damage-vignette"></div>
+    <div id="jumpscare-overlay" class="hidden"></div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
