@@ -14,10 +14,49 @@ export class UI {
     this.hintArrow = document.getElementById('hint-arrow');
     this.hintLabel = document.getElementById('hint-label');
     this.hintIndicator = document.getElementById('hint-indicator');
+    this.runTimer = document.getElementById('run-timer');
+    this.bestTimeCard = document.getElementById('best-time-card');
+    this.bestTimeValue = document.getElementById('best-time-value');
+    this.winCurrentTime = document.getElementById('win-current-time');
+    this.winBestTime = document.getElementById('win-best-time');
+    this.winNewRecord = document.getElementById('win-new-record');
 
     this._lastBattery = -1;
     this._warningHideTimer = null;
     this._lastHintLabel = '';
+    this._lastTimerStr = '';
+  }
+
+  static formatTime(seconds) {
+    const total = Math.max(0, Math.floor(seconds));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  setTimer(seconds) {
+    const str = UI.formatTime(seconds);
+    if (str === this._lastTimerStr) return;
+    this._lastTimerStr = str;
+    this.runTimer.textContent = `TIME ${str}`;
+  }
+
+  showBestTimeOnMenu(seconds) {
+    if (seconds == null || !Number.isFinite(seconds)) {
+      this.bestTimeCard.classList.add('hidden');
+      return;
+    }
+    this.bestTimeValue.textContent = UI.formatTime(seconds);
+    this.bestTimeCard.classList.remove('hidden');
+  }
+
+  showWinSummary(currentSeconds, bestSeconds, isNewRecord) {
+    this.winCurrentTime.textContent = UI.formatTime(currentSeconds);
+    this.winBestTime.textContent = bestSeconds != null && Number.isFinite(bestSeconds)
+      ? UI.formatTime(bestSeconds)
+      : '--:--';
+    if (isNewRecord) this.winNewRecord.classList.remove('hidden');
+    else this.winNewRecord.classList.add('hidden');
   }
 
   /**

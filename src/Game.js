@@ -34,6 +34,25 @@ export class Game {
     this.totalKeys = 3;
     this.pickups = []; // { mesh, type, gridX, gridY }
     this.exit = null;
+
+    // Personal-best timer (seconds). Best time persists across sessions.
+    this.runTime = 0;
+    this.bestTime = this._loadBestTime();
+  }
+
+  _bestTimeKey() { return 'hollowMaze.bestTime'; }
+
+  _loadBestTime() {
+    try {
+      const v = window.localStorage?.getItem(this._bestTimeKey());
+      const n = v == null ? null : Number(v);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    } catch (_) { return null; }
+  }
+
+  _saveBestTime(seconds) {
+    try { window.localStorage?.setItem(this._bestTimeKey(), String(seconds)); }
+    catch (_) { /* private mode or quota — best-effort */ }
   }
 
   init() {
@@ -44,6 +63,7 @@ export class Game {
     this.setupMobileControls();
     this.bindUI();
     this.bindResize();
+    this.ui.showBestTimeOnMenu(this.bestTime);
     this.animate();
   }
 
@@ -351,6 +371,7 @@ export class Game {
     this.clearScene();
     this.keysCollected = 0;
     this.pickups = [];
+    this.runTime = 0;
     this._cachedHintMap = null;
     this._cachedHintTarget = null;
     this._hintTimer = 0;
@@ -360,6 +381,7 @@ export class Game {
     this.ui.setKeys(0, this.totalKeys);
     this.ui.setBattery(1.0);
     this.ui.setObjective('Find the keys. Escape the maze.');
+    this.ui.setTimer(0);
     this.startGame();
   }
 
@@ -400,6 +422,16 @@ export class Game {
     this.audio.playWin();
     if (this.isTouch) this.mobileControls?.disable();
     else this.player.controls.unlock();
+
+    const finalTime = this.runTime;
+    const previousBest = this.bestTime;
+    const isRecord = previousBest == null || finalTime < previousBest;
+    if (isRecord) {
+      this.bestTime = finalTime;
+      this._saveBestTime(finalTime);
+    }
+    this.ui.showWinSummary(finalTime, this.bestTime, isRecord);
+
     document.getElementById('win-screen').classList.remove('hidden');
   }
 
@@ -479,6 +511,9 @@ export class Game {
     this.checkMonsterCatch();
     this.updateInteractPrompt();
     this.updateHint(delta);
+
+    this.runTime += delta;
+    this.ui.setTimer(this.runTime);
   }
 
   /**
