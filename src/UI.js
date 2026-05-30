@@ -11,9 +11,33 @@ export class UI {
     this.interactPrompt = document.getElementById('interact-prompt');
     this.warningText = document.getElementById('warning-text');
     this.jumpscareOverlay = document.getElementById('jumpscare-overlay');
+    this.hintArrow = document.getElementById('hint-arrow');
+    this.hintLabel = document.getElementById('hint-label');
+    this.hintIndicator = document.getElementById('hint-indicator');
 
     this._lastBattery = -1;
     this._warningHideTimer = null;
+    this._lastHintLabel = '';
+  }
+
+  /**
+   * Rotate the arrow to point at the next objective, relative to the player's
+   * heading. `angleRad` is a clockwise angle in radians where 0 = straight ahead.
+   * `label` is what to display under the arrow. Pass null to hide.
+   */
+  setHint(angleRad, label) {
+    if (!label) {
+      this.hintIndicator.style.display = 'none';
+      return;
+    }
+    this.hintIndicator.style.display = '';
+    // CSS rotation: 0deg means arrow points up (forward). Positive deg rotates clockwise.
+    const deg = angleRad * 180 / Math.PI;
+    this.hintArrow.style.transform = `rotate(${deg}deg)`;
+    if (label !== this._lastHintLabel) {
+      this.hintLabel.textContent = label;
+      this._lastHintLabel = label;
+    }
   }
 
   setBattery(value) {

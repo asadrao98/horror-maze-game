@@ -330,8 +330,8 @@ export class Environment {
   }
 
   placeEmergencyLights() {
-    // Place a few red emergency lights at random reachable cells. They flicker.
-    const count = Math.max(3, Math.floor(this.maze.cols * this.maze.rows / 50));
+    // Place red emergency lights at random reachable cells. They flicker.
+    const count = Math.max(8, Math.floor(this.maze.cols * this.maze.rows / 14));
     const used = new Set(['0,0']);
     for (let i = 0; i < count; i++) {
       let x, y, key;
@@ -344,7 +344,7 @@ export class Environment {
       } while (used.has(key) && attempts < 20);
       used.add(key);
       const pos = this.maze.cellToWorld(x, y);
-      const light = new THREE.PointLight(0xff2200, 0.6, 6, 1.5);
+      const light = new THREE.PointLight(0xff3a14, 0.9, 7.5, 1.5);
       light.position.set(pos.x, this.maze.wallHeight - 0.4, pos.z);
       this.scene.add(light);
       // Small lamp housing
@@ -362,7 +362,7 @@ export class Environment {
       this.emergencyLights.push({
         light,
         housing,
-        baseIntensity: 0.6,
+        baseIntensity: 0.9,
         phase: Math.random() * Math.PI * 2,
         flickerSeed: Math.random()
       });
@@ -372,9 +372,9 @@ export class Environment {
   addAmbient() {
     // Bright enough to barely make out walls when the flashlight is off,
     // dark enough that the flashlight still feels essential.
-    const ambient = new THREE.AmbientLight(0x6a6878, 1.1);
+    const ambient = new THREE.AmbientLight(0x8a8898, 1.9);
     this.scene.add(ambient);
-    const hemi = new THREE.HemisphereLight(0x8a88a0, 0x302828, 0.7);
+    const hemi = new THREE.HemisphereLight(0xa8a6c0, 0x403838, 1.2);
     this.scene.add(hemi);
   }
 

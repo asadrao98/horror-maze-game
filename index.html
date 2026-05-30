@@ -21,7 +21,6 @@
           <ul>
             <li><span>WASD</span> Move</li>
             <li><span>MOUSE</span> Look</li>
-            <li><span>SHIFT</span> Sprint</li>
             <li><span>F</span> Toggle Flashlight</li>
             <li><span>E</span> Interact / Pick Up</li>
             <li><span>ESC</span> Pause</li>
@@ -50,6 +49,11 @@
 
       <div id="interact-prompt" class="hidden">[E] Pick Up</div>
       <div id="warning-text" class="hidden"></div>
+
+      <div id="hint-indicator">
+        <div id="hint-arrow">&#9650;</div>
+        <div id="hint-label">NEAREST KEY</div>
+      </div>
     </div>
 
     <!-- Pause Menu -->
@@ -90,6 +94,15 @@
     <!-- Vignette overlay for damage / horror -->
     <div id="damage-vignette"></div>
     <div id="jumpscare-overlay" class="hidden"></div>
+
+    <!-- Mobile: please-rotate prompt shown only on touch + portrait -->
+    <div id="orientation-prompt">
+      <div class="menu-content">
+        <div id="rotate-icon">&#x21BB;</div>
+        <h2>ROTATE YOUR DEVICE</h2>
+        <p>This game is best played in landscape.</p>
+      </div>
+    </div>
   </div>
 
   <script type="module" src="/src/main.js"></script>

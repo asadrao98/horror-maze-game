@@ -19,25 +19,26 @@ export class FlashlightSystem {
 
     this.isOn = false;
     this.battery = 1.0; // 0..1
-    this.drainRate = 0.018; // per second while on
-    this.maxIntensity = 14;
+    this.drainRate = 0.007; // per second while on
+    this.maxIntensity = 24;
 
-    this.FLICKER_THRESHOLD = 0.25;
-    this.CRITICAL_THRESHOLD = 0.10;
+    this.DIM_THRESHOLD = 0.20;
+    this.FLICKER_THRESHOLD = 0.20;
+    this.CRITICAL_THRESHOLD = 0.08;
 
     this.spot = new THREE.SpotLight(
       0xfff2cc,
       0,                  // intensity (driven by update)
-      22,                 // distance
-      Math.PI / 6,        // angle (cone)
-      0.55,               // penumbra (softness)
+      40,                 // distance
+      Math.PI / 5,        // angle (cone)
+      0.5,                // penumbra (softness)
       1.0                 // decay
     );
     this.spot.castShadow = true;
     this.spot.shadow.mapSize.set(1024, 1024);
     this.spot.shadow.bias = -0.0005;
     this.spot.shadow.camera.near = 0.3;
-    this.spot.shadow.camera.far = 18;
+    this.spot.shadow.camera.far = 36;
 
     // Place the light slightly below-and-right of the camera
     this.spot.position.set(0.25, -0.2, 0);
@@ -48,7 +49,7 @@ export class FlashlightSystem {
 
     // Faint, very short "fill" light from the player so they're not in pure
     // black when the flashlight is off — keeps the floor barely visible.
-    this.fill = new THREE.PointLight(0xffeecc, 0.7, 6, 2);
+    this.fill = new THREE.PointLight(0xffeecc, 1.4, 10, 2);
     this.camera.add(this.fill);
 
     this._flickerNoise = 0;
@@ -68,10 +69,11 @@ export class FlashlightSystem {
     else this.turnOn();
   }
 
-  recharge(amount) {
-    this.battery = Math.min(1, this.battery + amount);
+  recharge() {
+    // Battery pickups always refill to 100%.
+    this.battery = 1.0;
     // Auto-turn-on after recharge if it had died
-    if (!this.isOn && this.battery > 0.05) this.isOn = true;
+    if (!this.isOn) this.isOn = true;
   }
 
   update(delta, player) {
@@ -86,8 +88,12 @@ export class FlashlightSystem {
       return;
     }
 
-    // Compute base intensity, falling off as battery drops
-    let intensity = this.maxIntensity * Math.max(0.15, this.battery);
+    // Full brightness until battery dips below DIM_THRESHOLD; then ramps down.
+    let intensity = this.maxIntensity;
+    if (this.battery < this.DIM_THRESHOLD) {
+      const t = Math.max(0, this.battery) / this.DIM_THRESHOLD;
+      intensity *= Math.max(0.15, t);
+    }
 
     // Flicker at low battery
     if (this.battery < this.FLICKER_THRESHOLD) {
@@ -99,11 +105,6 @@ export class FlashlightSystem {
       if (this.battery < this.CRITICAL_THRESHOLD && Math.random() < 0.05) {
         intensity *= 0.1;
       }
-    }
-
-    // Subtle "breathing" while sprinting — beam shakes
-    if (player?.isSprinting) {
-      intensity *= 0.92 + Math.random() * 0.16;
     }
 
     this.spot.intensity = intensity;

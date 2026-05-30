@@ -13,14 +13,25 @@ Then open the URL Vite prints (usually `http://localhost:5173`). Click **ENTER T
 
 ## Controls
 
+### Desktop
+
 | Key | Action |
 |-----|--------|
 | `W A S D` | Move |
 | Mouse | Look |
-| `Shift` | Sprint (also makes noise — monster can hear you) |
 | `F` | Toggle flashlight |
 | `E` | Pick up / Interact |
 | `Esc` | Pause |
+
+### Mobile (touch)
+
+Open the page in your phone's browser and rotate to landscape. The game shows touch controls automatically:
+
+- **Left joystick** — move (analog, supports diagonals and partial speed)
+- **Right side drag** — look around
+- **F button** — toggle flashlight
+- **E button** — interact / pick up
+- **‖ button** (top right) — pause
 
 ## How to play
 
@@ -28,7 +39,7 @@ Then open the URL Vite prints (usually `http://localhost:5173`). Click **ENTER T
 - Blue battery cells recharge your flashlight. Manage drain carefully.
 - The exit (red-glowing door) is locked until you have all three keys.
 - The monster wanders, searches noise, and chases anything its eyes catch. A flashlight beam pointed at it dramatically increases detection range.
-- Hide by breaking line of sight and moving quietly (no sprint) — it will lose interest after a few seconds.
+- Hide by breaking line of sight — the monster will lose interest after a few seconds.
 
 ## Architecture
 
@@ -39,7 +50,8 @@ All game code lives in `src/`. Each module owns one concern:
 | `main.js` | Bootstraps the game on page load. |
 | `Game.js` | Top-level orchestrator: scene, renderer, state machine, main loop. |
 | `MazeGenerator.js` | Recursive-backtracker maze + BFS helpers + pickup placement. |
-| `Player.js` | First-person controller with PointerLockControls, head bob, stamina. |
+| `Player.js` | First-person controller with PointerLockControls, head bob, analog joystick input. |
+| `MobileControls.js` | Touch joystick + look pad + buttons for mobile/landscape play. |
 | `FlashlightSystem.js` | SpotLight rigged to camera + battery + flicker logic. |
 | `MonsterAI.js` | Patrol / Search / Chase state machine with grid pathfinding. |
 | `Environment.js` | Walls, floor, ceiling, decals, emergency lights, fog dynamics, procedural textures. |
@@ -72,6 +84,7 @@ horror-maze-game/
     ├── AudioManager.js
     ├── UI.js
     ├── PostProcessing.js
+    ├── MobileControls.js
     └── styles.css
 ```
 
@@ -80,9 +93,10 @@ horror-maze-game/
 Numbers worth tweaking live near the top of each module:
 
 - `Game.js` → `mazeConfig` (grid size, cell size, wall height) and `totalKeys`.
-- `MonsterAI.js` → `speeds`, `detectionRange`, `flashlightRange`, `noiseRange`.
-- `FlashlightSystem.js` → `drainRate`, `FLICKER_THRESHOLD`, `CRITICAL_THRESHOLD`.
-- `Player.js` → `walkSpeed`, `sprintSpeed`, stamina drain/regen.
+- `MonsterAI.js` → `speeds`, `detectionRange`, `flashlightRange`.
+- `FlashlightSystem.js` → `drainRate`, `DIM_THRESHOLD`, `FLICKER_THRESHOLD`, `CRITICAL_THRESHOLD`.
+- `Player.js` → `walkSpeed`, `acceleration`, `friction`.
+- `MobileControls.js` → `lookSensitivity`, `_joystickRadius`.
 
 ## Build
 

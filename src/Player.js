@@ -4,8 +4,7 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 /**
  * Player - First-person controller.
  * Wraps the camera in PointerLockControls for mouse look, handles WASD
- * movement with sprint, applies subtle head-bob while walking, and amplifies
- * head-bob into a "breathing" effect while sprinting.
+ * (and analog joystick) movement, applies subtle head-bob while walking.
  *
  * Movement is collision-aware via CollisionSystem.moveEntity which slides
  * along walls instead of stopping dead at them.
@@ -20,10 +19,12 @@ export class Player {
     this.object = this.controls.getObject(); // yaw container (a Group)
 
     this.velocity = new THREE.Vector3();
-    this.direction = new THREE.Vector3();
+    this._forward = new THREE.Vector3();
+    this._right = new THREE.Vector3();
+    this._up = new THREE.Vector3(0, 1, 0);
+    this._moveDir = new THREE.Vector3();
 
-    this.walkSpeed = 3.4;
-    this.sprintSpeed = 5.8;
+    this.walkSpeed = 5.8;
     this.acceleration = 12;
     this.friction = 10;
 
@@ -31,17 +32,16 @@ export class Player {
       forward: false,
       back: false,
       left: false,
-      right: false,
-      sprint: false
+      right: false
     };
 
-    // Head bob / breathing state
+    // Analog input from a virtual joystick (mobile). x = strafe, z = forward.
+    // Range ~[-1, 1] each; magnitude clamped to 1 when combined with keyboard.
+    this.touchAxes = { x: 0, z: 0 };
+
+    // Head bob state
     this.bobTime = 0;
     this.baseY = 1.6;
-
-    // Stamina governs sprint duration. Drains while sprinting, regens at rest.
-    this.stamina = 1.0;
-    this.isSprinting = false;
     this.isMoving = false;
     this.footstepTimer = 0;
 
@@ -55,7 +55,6 @@ export class Player {
         case 'KeyS': case 'ArrowDown': this.keys.back = true; break;
         case 'KeyA': case 'ArrowLeft': this.keys.left = true; break;
         case 'KeyD': case 'ArrowRight': this.keys.right = true; break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
       }
     });
     document.addEventListener('keyup', (e) => {
@@ -64,7 +63,6 @@ export class Player {
         case 'KeyS': case 'ArrowDown': this.keys.back = false; break;
         case 'KeyA': case 'ArrowLeft': this.keys.left = false; break;
         case 'KeyD': case 'ArrowRight': this.keys.right = false; break;
-        case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
       }
     });
   }
@@ -75,36 +73,37 @@ export class Player {
   }
 
   update(delta) {
-    // Input vector (camera-space)
-    this.direction.x = (this.keys.right ? 1 : 0) - (this.keys.left ? 1 : 0);
-    this.direction.z = (this.keys.back ? 1 : 0) - (this.keys.forward ? 1 : 0);
-    this.direction.y = 0;
-    const inputMagnitude = this.direction.length();
+    // Build world-space forward/right from the camera's actual orientation.
+    // Reading rotation.y is unreliable here: PointerLockControls writes the
+    // camera quaternion via YXZ Euler, but Object3D's rotation Euler decodes
+    // as XYZ — so when pitched up/down the recovered "yaw" can flip sign and
+    // invert WASD. Deriving from the world direction sidesteps that entirely.
+    this.camera.getWorldDirection(this._forward);
+    this._forward.y = 0;
+    if (this._forward.lengthSq() < 1e-6) {
+      // Looking straight up/down — fall back to a sane forward
+      this._forward.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+      this._forward.y = 0;
+    }
+    this._forward.normalize();
+    this._right.crossVectors(this._forward, this._up).normalize();
+
+    // Combine keyboard (unit booleans) with joystick (analog axes).
+    let strafe  = (this.keys.right   ? 1 : 0) - (this.keys.left ? 1 : 0) + this.touchAxes.x;
+    let forward = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0) + this.touchAxes.z;
+    const mag = Math.hypot(strafe, forward);
+    if (mag > 1) { strafe /= mag; forward /= mag; }
+
+    this._moveDir.set(0, 0, 0)
+      .addScaledVector(this._forward, forward)
+      .addScaledVector(this._right,   strafe);
+
+    const inputMagnitude = Math.min(1, mag);
     this.isMoving = inputMagnitude > 0.01;
-    if (this.isMoving) this.direction.normalize();
 
-    this.isSprinting = this.keys.sprint && this.isMoving && this.keys.forward && this.stamina > 0.05;
-    const targetSpeed = this.isSprinting ? this.sprintSpeed : this.walkSpeed;
-
-    // Stamina
-    if (this.isSprinting) {
-      this.stamina = Math.max(0, this.stamina - delta * 0.25);
-    } else {
-      this.stamina = Math.min(1, this.stamina + delta * 0.15);
-    }
-
-    // Accelerate toward target velocity
-    const desired = new THREE.Vector3();
-    if (this.isMoving) {
-      desired.copy(this.direction).multiplyScalar(targetSpeed);
-    }
-
-    // Convert desired (local) to world-space via the camera's yaw
-    const yaw = this.object.rotation.y;
-    const cosY = Math.cos(yaw);
-    const sinY = Math.sin(yaw);
-    const worldDesiredX = desired.x * cosY - desired.z * sinY;
-    const worldDesiredZ = desired.x * sinY + desired.z * cosY;
+    const targetSpeed = this.walkSpeed;
+    const worldDesiredX = this._moveDir.x * targetSpeed;
+    const worldDesiredZ = this._moveDir.z * targetSpeed;
 
     // Simple lerped acceleration
     const accel = this.isMoving ? this.acceleration : this.friction;
@@ -118,8 +117,8 @@ export class Player {
 
     // Head bob (only when actually moving — sampled by horizontal velocity)
     const speed = Math.hypot(this.velocity.x, this.velocity.z);
-    const bobFreq = this.isSprinting ? 9 : 6;
-    const bobAmp = this.isSprinting ? 0.08 : 0.04;
+    const bobFreq = 8;
+    const bobAmp = 0.06;
     if (speed > 0.5) {
       this.bobTime += delta * bobFreq;
       const bob = Math.sin(this.bobTime) * bobAmp;
@@ -136,7 +135,7 @@ export class Player {
   consumeFootstep() {
     const speed = Math.hypot(this.velocity.x, this.velocity.z);
     if (speed < 0.5) return false;
-    const interval = this.isSprinting ? 0.32 : 0.5;
+    const interval = 0.38;
     if (this.footstepTimer >= interval) {
       this.footstepTimer = 0;
       return true;

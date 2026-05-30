@@ -8,6 +8,7 @@ import { AudioManager } from './AudioManager.js';
 import { UI } from './UI.js';
 import { PostProcessing } from './PostProcessing.js';
 import { CollisionSystem } from './CollisionSystem.js';
+import { MobileControls } from './MobileControls.js';
 
 /**
  * Game - Top-level orchestrator. Owns the scene, renderer, and all subsystems.
@@ -36,12 +37,33 @@ export class Game {
   }
 
   init() {
+    this.isTouch = MobileControls.isTouchDevice();
     this.setupRenderer();
     this.setupScene();
     this.setupSystems();
+    this.setupMobileControls();
     this.bindUI();
     this.bindResize();
     this.animate();
+  }
+
+  setupMobileControls() {
+    if (!this.isTouch) return;
+    this.mobileControls = new MobileControls({
+      camera: this.camera,
+      root: document.getElementById('app'),
+      onFlashlight: () => {
+        if (this.state === 'playing') this.flashlight.toggle();
+      },
+      onInteract: () => {
+        if (this.state === 'playing') this.tryInteract();
+      },
+      onPause: () => {
+        if (this.state === 'playing') this.pauseGame();
+      }
+    });
+    // Stream joystick axes into the player every frame.
+    this.player.touchAxes = this.mobileControls.axes;
   }
 
   setupRenderer() {
@@ -230,12 +252,22 @@ export class Game {
     document.getElementById('retry-button').addEventListener('click', () => this.restart());
     document.getElementById('play-again-button').addEventListener('click', () => this.restart());
 
-    document.addEventListener('pointerlockchange', () => {
-      if (this.state !== 'playing') return;
-      if (document.pointerLockElement !== this.renderer.domElement) {
-        this.pauseGame();
-      }
-    });
+    if (!this.isTouch) {
+      document.addEventListener('pointerlockchange', () => {
+        if (this.state !== 'playing') return;
+        if (document.pointerLockElement !== this.renderer.domElement) {
+          this.pauseGame();
+        }
+      });
+    } else {
+      // If the player leaves fullscreen on mobile, pause so they can re-enter.
+      const onFsChange = () => {
+        const inFs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (!inFs && this.state === 'playing') this.pauseGame();
+      };
+      document.addEventListener('fullscreenchange', onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
+    }
 
     document.addEventListener('keydown', (e) => {
       if (e.code === 'Escape') {
@@ -264,22 +296,50 @@ export class Game {
     document.getElementById('hud').classList.remove('hidden');
     this.audio.init();
     this.audio.startAmbient();
-    this.player.controls.lock();
+    if (this.isTouch) {
+      this._requestFullscreen();
+      this.mobileControls?.enable();
+    } else {
+      this.player.controls.lock();
+    }
     this.state = 'playing';
     this.flashlight.turnOn();
+  }
+
+  /**
+   * Best-effort fullscreen on touch devices. Must be called from within a user
+   * gesture (the start-button tap) because browsers reject fullscreen requests
+   * otherwise. Silently no-ops where unsupported (iPhone Safari).
+   */
+  _requestFullscreen() {
+    const el = document.documentElement;
+    const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (!fn) return;
+    try {
+      const p = fn.call(el);
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch (_) {
+      // Ignore — fullscreen is a nice-to-have, not required.
+    }
   }
 
   pauseGame() {
     if (this.state !== 'playing') return;
     this.state = 'paused';
     document.getElementById('pause-menu').classList.remove('hidden');
-    this.player.controls.unlock();
+    if (this.isTouch) this.mobileControls?.disable();
+    else this.player.controls.unlock();
   }
 
   resumeGame() {
     document.getElementById('pause-menu').classList.add('hidden');
     this.state = 'playing';
-    this.player.controls.lock();
+    if (this.isTouch) {
+      this._requestFullscreen();
+      this.mobileControls?.enable();
+    } else {
+      this.player.controls.lock();
+    }
   }
 
   restart() {
@@ -291,7 +351,12 @@ export class Game {
     this.clearScene();
     this.keysCollected = 0;
     this.pickups = [];
+    this._cachedHintMap = null;
+    this._cachedHintTarget = null;
+    this._hintTimer = 0;
     this.setupSystems();
+    // Player was recreated — re-link joystick axes if mobile.
+    if (this.mobileControls) this.player.touchAxes = this.mobileControls.axes;
     this.ui.setKeys(0, this.totalKeys);
     this.ui.setBattery(1.0);
     this.ui.setObjective('Find the keys. Escape the maze.');
@@ -322,7 +387,8 @@ export class Game {
     this.state = 'dead';
     this.audio.playJumpscare();
     this.ui.showJumpscare();
-    this.player.controls.unlock();
+    if (this.isTouch) this.mobileControls?.disable();
+    else this.player.controls.unlock();
     setTimeout(() => {
       document.getElementById('death-screen').classList.remove('hidden');
     }, 700);
@@ -332,7 +398,8 @@ export class Game {
     if (this.state !== 'playing') return;
     this.state = 'win';
     this.audio.playWin();
-    this.player.controls.unlock();
+    if (this.isTouch) this.mobileControls?.disable();
+    else this.player.controls.unlock();
     document.getElementById('win-screen').classList.remove('hidden');
   }
 
@@ -380,7 +447,7 @@ export class Game {
         this.ui.setObjective('All keys found. Reach the exit.');
       }
     } else if (pickup.type === 'battery') {
-      this.flashlight.recharge(0.4);
+      this.flashlight.recharge();
       this.audio.playPickup(false);
     }
   }
@@ -411,6 +478,95 @@ export class Game {
     this.updatePostFX();
     this.checkMonsterCatch();
     this.updateInteractPrompt();
+    this.updateHint(delta);
+  }
+
+  /**
+   * Point the HUD arrow at the closest objective along the maze's actual path,
+   * not as the crow flies. BFS from the target gives us a distance map; the
+   * player's neighbor with the smallest distance is the next step.
+   *
+   * Recomputed at ~5 Hz; the arrow's CSS transition smooths over frames.
+   */
+  updateHint(delta) {
+    this._hintTimer = (this._hintTimer ?? 0) - delta;
+    const target = this._pickHintTarget();
+    if (!target) {
+      this.ui.setHint(0, null);
+      return;
+    }
+
+    if (this._hintTimer <= 0 || !this._cachedHintTarget ||
+        this._cachedHintTarget.x !== target.cell.x ||
+        this._cachedHintTarget.y !== target.cell.y) {
+      this._cachedHintTarget = { x: target.cell.x, y: target.cell.y };
+      this._cachedHintMap = this.maze.distanceMapFrom(target.cell.x, target.cell.y);
+      this._hintTimer = 0.2;
+    }
+
+    const playerCell = this.maze.worldToCell(
+      this.player.object.position.x,
+      this.player.object.position.z
+    );
+
+    // Find player's reachable neighbor with the smallest distance to target.
+    const neighbors = this.maze.getReachableNeighbors(playerCell.x, playerCell.y);
+    let best = null;
+    let bestDist = this._cachedHintMap[playerCell.y]?.[playerCell.x];
+    if (bestDist === undefined) bestDist = Infinity;
+    for (const n of neighbors) {
+      const d = this._cachedHintMap[n.y]?.[n.x];
+      if (d !== undefined && d < bestDist) {
+        bestDist = d;
+        best = n;
+      }
+    }
+
+    // Decide which world point to aim at: the next step's center if we have one,
+    // otherwise the target itself (player is in the target cell).
+    const aimCell = best ?? target.cell;
+    const aimWorld = this.maze.cellToWorld(aimCell.x, aimCell.y);
+    const dx = aimWorld.x - this.player.object.position.x;
+    const dz = aimWorld.z - this.player.object.position.z;
+
+    // Compute angle between player's forward and the aim direction.
+    const fwd = this.player._forward; // populated in Player.update each frame
+    if (!fwd || fwd.lengthSq() < 1e-6) return;
+    // Signed angle: positive = aim is to the right of forward.
+    const aimLen = Math.hypot(dx, dz);
+    if (aimLen < 1e-4) {
+      this.ui.setHint(0, target.label);
+      return;
+    }
+    const ax = dx / aimLen, az = dz / aimLen;
+    const dot = fwd.x * ax + fwd.z * az;
+    const cross = fwd.x * az - fwd.z * ax; // y-component of fwd × aim
+    const angle = Math.atan2(cross, dot);
+
+    this.ui.setHint(angle, target.label);
+  }
+
+  _pickHintTarget() {
+    const playerPos = this.player.object.position;
+    if (this.keysCollected >= this.totalKeys && this.exit) {
+      const ec = this.maze.worldToCell(this.exit.position.x, this.exit.position.z);
+      return { cell: ec, label: 'EXIT' };
+    }
+    // Nearest remaining key by Manhattan distance — cheap and close enough;
+    // BFS would be more accurate but pickups are sparse.
+    let nearest = null;
+    let nearestD = Infinity;
+    for (const p of this.pickups) {
+      if (p.type !== 'key') continue;
+      const dx = p.mesh.position.x - playerPos.x;
+      const dz = p.mesh.position.z - playerPos.z;
+      const d = dx * dx + dz * dz;
+      if (d < nearestD) { nearestD = d; nearest = p; }
+    }
+    if (nearest) {
+      return { cell: { x: nearest.gridX, y: nearest.gridY }, label: 'NEAREST KEY' };
+    }
+    return null;
   }
 
   updatePickups(delta) {

@@ -18,8 +18,6 @@ import * as THREE from 'three';
  *     trigger for chase.
  *   - The player's flashlight beam dramatically increases detection range
  *     when pointed at the monster.
- *   - Sprinting close to the monster ("noise") forces it into search even
- *     without LOS.
  *
  * Random teleport: every so often, while in patrol and far from the player,
  * the monster may relocate to a random distant cell. This is what produces
@@ -45,7 +43,6 @@ export class MonsterAI {
     this.speeds = { patrol: 1.6, search: 2.4, chase: 3.6 };
     this.detectionRange = 7;
     this.flashlightRange = 18;
-    this.noiseRange = 9;
     this.catchDistance = 1.1;
 
     this.mesh = this.buildMesh();
@@ -150,7 +147,6 @@ export class MonsterAI {
       if (dot > 0.55) detectDist = this.flashlightRange;
     }
 
-    const noisy = player.isSprinting && dist < this.noiseRange;
     const seesPlayer = hasLOS && dist < detectDist;
 
     // --- State transitions ----------------------------------------------------
@@ -166,8 +162,6 @@ export class MonsterAI {
           this.enterSearch(this.lastKnownPlayerCell);
         }
       }
-    } else if (this.state === 'patrol' && noisy) {
-      this.enterSearch(this.maze.worldToCell(playerPos.x, playerPos.z));
     } else if (this.state === 'search') {
       // Reached target or timed out
       if (this.path.length === 0 || this.stateTimer > 10) {
