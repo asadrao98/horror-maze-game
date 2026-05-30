@@ -104,3 +104,27 @@ Numbers worth tweaking live near the top of each module:
 npm run build      # outputs to dist/
 npm run preview    # serves dist/ locally
 ```
+
+## Deploy to Firebase Hosting
+
+The site deploys to **https://play-horror-maze.web.app**.
+
+One-time setup (machine-level):
+
+```bash
+npm install -g firebase-tools
+firebase login
+```
+
+Deploy:
+
+```bash
+npm run deploy            # production
+npm run deploy:preview    # ephemeral preview channel
+```
+
+The `firebase.json` `predeploy` hook runs `npm run build` automatically, so you don't need to build first. Caching: hashed assets in `assets/` are `immutable` for a year; `index.html` is `no-cache` so updates roll out immediately.
+
+### About the Firebase API key in `src/firebase.js`
+
+Firebase web API keys are **public by design** — they identify the project, not authenticate. Security comes from API-key referrer restrictions (set in Google Cloud Console → APIs & Services → Credentials) and Firebase Security Rules. Committing this config is the recommended pattern.

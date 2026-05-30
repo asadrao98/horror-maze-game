@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="The Hollow Maze">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="55%" r="70%">
+      <stop offset="0%" stop-color="#1a0606"/>
+      <stop offset="65%" stop-color="#050505"/>
+      <stop offset="100%" stop-color="#000"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Distant maze corridor suggestion: receding vertical lines -->
+  <g stroke="#1a0808" stroke-width="2" opacity="0.6">
+    <path d="M120 90 L520 290 L520 340 L120 540"/>
+    <path d="M1080 90 L680 290 L680 340 L1080 540"/>
+    <path d="M520 290 L680 290"/>
+    <path d="M520 340 L680 340"/>
+  </g>
+
+  <!-- Two red glowing eyes deep in the corridor -->
+  <g fill="#ff2200" filter="url(#glow)">
+    <circle cx="585" cy="315" r="6"/>
+    <circle cx="615" cy="315" r="6"/>
+  </g>
+  <g fill="#ff5533">
+    <circle cx="585" cy="315" r="3"/>
+    <circle cx="615" cy="315" r="3"/>
+  </g>
+
+  <!-- Title -->
+  <g font-family="Courier New, monospace" text-anchor="middle">
+    <text x="600" y="180" font-size="92" font-weight="bold" fill="#aa1010" letter-spacing="8" filter="url(#glow)">THE HOLLOW MAZE</text>
+    <text x="600" y="180" font-size="92" font-weight="bold" fill="#aa1010" letter-spacing="8">THE HOLLOW MAZE</text>
+    <text x="600" y="240" font-size="26" fill="#888" letter-spacing="3" font-style="italic">YOU WAKE IN THE DARK. SOMETHING IS IN HERE WITH YOU.</text>
+
+    <text x="600" y="500" font-size="22" fill="#aaa" letter-spacing="4">FREE BROWSER HORROR GAME — DESKTOP &amp; MOBILE</text>
+    <text x="600" y="540" font-size="18" fill="#666" letter-spacing="2">FIND THE KEYS &middot; ESCAPE THE MAZE</text>
+  </g>
+</svg>
