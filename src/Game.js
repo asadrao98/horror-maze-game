@@ -272,6 +272,11 @@ export class Game {
     document.getElementById('retry-button').addEventListener('click', () => this.restart());
     document.getElementById('play-again-button').addEventListener('click', () => this.restart());
 
+    const rotateBtn = document.getElementById('rotate-screen-button');
+    if (rotateBtn) {
+      rotateBtn.addEventListener('click', () => this._rotateToLandscape());
+    }
+
     if (!this.isTouch) {
       document.addEventListener('pointerlockchange', () => {
         if (this.state !== 'playing') return;
@@ -334,12 +339,42 @@ export class Game {
   _requestFullscreen() {
     const el = document.documentElement;
     const fn = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-    if (!fn) return;
+    if (!fn) return null;
     try {
       const p = fn.call(el);
       if (p && typeof p.catch === 'function') p.catch(() => {});
+      return p || null;
     } catch (_) {
-      // Ignore — fullscreen is a nice-to-have, not required.
+      return null;
+    }
+  }
+
+  /**
+   * Try to flip the device into landscape. Chromium-Android requires fullscreen
+   * before screen.orientation.lock() will succeed; iOS Safari has no lock API
+   * at all, so we surface a fallback hint asking the user to rotate manually.
+   */
+  async _rotateToLandscape() {
+    const hint = document.getElementById('rotate-fallback-hint');
+    const supportsLock = typeof screen !== 'undefined'
+      && screen.orientation
+      && typeof screen.orientation.lock === 'function';
+
+    if (!supportsLock) {
+      hint?.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const p = this._requestFullscreen();
+      if (p && typeof p.then === 'function') {
+        try { await p; } catch (_) { /* fullscreen rejected — try lock anyway */ }
+      }
+      await screen.orientation.lock('landscape');
+      hint?.classList.add('hidden');
+    } catch (_) {
+      // Lock rejected (permissions, unsupported on this device, etc).
+      hint?.classList.remove('hidden');
     }
   }
 
