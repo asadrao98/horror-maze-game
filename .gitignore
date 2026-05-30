@@ -5,6 +5,9 @@ dist/
 *.log
 .env
 .env.local
+.env.*.local
+.env.development
+.env.production
 
 # Firebase
 .firebase/

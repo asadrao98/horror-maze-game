@@ -125,6 +125,17 @@ npm run deploy:preview    # ephemeral preview channel
 
 The `firebase.json` `predeploy` hook runs `npm run build` automatically, so you don't need to build first. Caching: hashed assets in `assets/` are `immutable` for a year; `index.html` is `no-cache` so updates roll out immediately.
 
-### About the Firebase API key in `src/firebase.js`
+### Firebase config
 
-Firebase web API keys are **public by design** — they identify the project, not authenticate. Security comes from API-key referrer restrictions (set in Google Cloud Console → APIs & Services → Credentials) and Firebase Security Rules. Committing this config is the recommended pattern.
+Firebase config lives in `.env.local` (gitignored). Copy `.env.example` to `.env.local` and fill in real values from Firebase Console → Project Settings → Your apps → Web app:
+
+```bash
+cp .env.example .env.local
+# then edit .env.local with real values
+```
+
+Vite inlines `VITE_FIREBASE_*` vars at build time, so they end up in the deployed JS bundle. That's fine — Firebase **web** API keys are public-by-design (they identify the project, not authenticate). Actual security comes from:
+
+1. **HTTP-referrer restrictions** on the API key in Google Cloud Console → APIs & Services → Credentials → restrict to `play-horror-maze.web.app`, `play-horror-maze.firebaseapp.com`, and `localhost:*`.
+2. **Firebase Security Rules** locking Firestore/Storage if/when you add them.
+3. **App Check** (Firebase Console) to block traffic that isn't coming from your own site.
