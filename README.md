@@ -2,6 +2,21 @@
 
 A first-person horror maze game built with Three.js. You wake up trapped in a dark procedural maze with a stalking entity. Find three keys, reach the exit, and don't let it catch you.
 
+<p align="center">
+  <img src="docs/screenshot-title.png" alt="The Hollow Maze title screen: the game's name in red over darkness, with the line 'You wake in the dark. Something is in here with you.' and an ENTER THE MAZE button above the control list" width="720" />
+</p>
+
+<p align="center">
+  <a href="https://play-horror-maze.web.app"><b>&#9654; Play it in your browser</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/screenshot-pause.png" alt="The pause overlay mid-run, RESUME and RESTART framed in red against the near-black maze" width="480" />
+</p>
+
+> The maze itself is deliberately almost pitch dark — your flashlight is the only real light source,
+> and screenshots flatten that in a way playing it does not. The link above is the honest version.
+
 ## Quick start
 
 ```bash
